@@ -33,7 +33,7 @@ export const handler = async (event: AgentEvent): Promise<AgentResponse> => {
   });
 
   const agent = new Agent({
-    model: "anthropic.claude-3-5-sonnet-v1:0",
+    model: "anthropic.claude-3-5-sonnet-20241022-v2:0",
     apiKey: process.env.ANTHROPIC_API_KEY,
     tools: [...mcpTools],
     systemPrompt: SYSTEM_PROMPT,

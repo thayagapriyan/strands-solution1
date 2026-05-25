@@ -67,7 +67,7 @@ resource "aws_iam_role_policy" "agent_permissions" {
         # Invoke Claude via Bedrock
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-v1:0"
+        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
       },
       {
         # Call the private Data API Lambda URL (IAM-authenticated)
@@ -101,7 +101,7 @@ resource "aws_iam_role_policy" "bedrock_agent_permissions" {
       {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-v1:0"
+        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
       },
       {
         Effect   = "Allow"
