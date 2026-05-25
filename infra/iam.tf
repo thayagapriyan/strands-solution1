@@ -1,3 +1,14 @@
+data "aws_caller_identity" "current" {}
+
+locals {
+  bedrock_model_resources = [
+    "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+  ]
+}
+
 data "aws_iam_policy_document" "lambda_assume" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -64,10 +75,10 @@ resource "aws_iam_role_policy" "agent_permissions" {
     Version = "2012-10-17"
     Statement = [
       {
-        # Invoke Claude via Bedrock
+        # Invoke Claude via Bedrock (cross-region inference profile + underlying models in each routed region)
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+        Resource = local.bedrock_model_resources
       },
       {
         # Call the private Data API Lambda URL (IAM-authenticated)
@@ -101,7 +112,7 @@ resource "aws_iam_role_policy" "bedrock_agent_permissions" {
       {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
-        Resource = "arn:aws:bedrock:*::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0"
+        Resource = local.bedrock_model_resources
       },
       {
         Effect   = "Allow"
