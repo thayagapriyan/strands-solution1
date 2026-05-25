@@ -140,6 +140,9 @@ jobs:
       id-token: write    # for OIDC-based AWS auth (recommended over long-lived keys)
       contents: read
 
+    outputs:
+      agent_function_name: ${{ steps.tf_outputs.outputs.agent_function_name }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -203,6 +206,12 @@ jobs:
         if: steps.plan.outputs.exitcode == '0'
         run: echo "Infrastructure is already up to date."
 
+      - name: Capture Terraform outputs
+        id: tf_outputs
+        working-directory: infra
+        run: |
+          echo "agent_function_name=$(terraform output -raw agent_function_name)" >> "$GITHUB_OUTPUT"
+
   # ──────────────────────────────────────────────
   # Job 4: Smoke test after deploy
   # ──────────────────────────────────────────────
@@ -228,9 +237,11 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Invoke agent Lambda
+        env:
+          FUNCTION_NAME: ${{ needs.deploy.outputs.agent_function_name }}
         run: |
           RESPONSE=$(aws lambda invoke \
-            --function-name strands-agent \
+            --function-name "$FUNCTION_NAME" \
             --payload '{"query":"Is product SKU-001 in stock?"}' \
             --cli-binary-format raw-in-base64-out \
             /tmp/smoke-response.json \
