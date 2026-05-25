@@ -1,11 +1,6 @@
-data "aws_caller_identity" "current" {}
-
 locals {
   bedrock_model_resources = [
-    "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
   ]
 }
 
@@ -75,7 +70,7 @@ resource "aws_iam_role_policy" "agent_permissions" {
     Version = "2012-10-17"
     Statement = [
       {
-        # Invoke Claude via Bedrock (cross-region inference profile + underlying models in each routed region)
+        # Invoke Claude via Bedrock
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
         Resource = local.bedrock_model_resources
