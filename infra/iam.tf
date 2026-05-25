@@ -1,6 +1,12 @@
+data "aws_caller_identity" "current" {}
+
 locals {
+  bedrock_inference_profile_arn = "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
   bedrock_model_resources = [
-    "arn:aws:bedrock:${var.aws_region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0",
+    local.bedrock_inference_profile_arn,
+    "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "arn:aws:bedrock:us-east-2::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+    "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
   ]
 }
 
@@ -108,6 +114,12 @@ resource "aws_iam_role_policy" "bedrock_agent_permissions" {
         Effect   = "Allow"
         Action   = ["bedrock:InvokeModel"]
         Resource = local.bedrock_model_resources
+      },
+      {
+        # Required when the agent's foundation_model is a cross-region inference profile
+        Effect   = "Allow"
+        Action   = ["bedrock:GetInferenceProfile"]
+        Resource = local.bedrock_inference_profile_arn
       },
       {
         Effect   = "Allow"

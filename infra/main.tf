@@ -143,7 +143,7 @@ resource "aws_lambda_permission" "bedrock_invoke_agent" {
 
 resource "aws_bedrockagent_agent" "strands_agent" {
   agent_name              = "${var.project_name}-agent"
-  foundation_model        = "anthropic.claude-3-sonnet-20240229-v1:0"
+  foundation_model        = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
   agent_resource_role_arn = aws_iam_role.bedrock_agent_role.arn
   instruction             = "You manage warehouse inventory. Always use tools to retrieve real stock data before answering."
 }
