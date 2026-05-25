@@ -1,75 +1,43 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import axios from "axios";
-import { SignatureV4 } from "@aws-sdk/signature-v4";
-import { defaultProvider } from "@aws-sdk/credential-provider-node";
-import { Sha256 } from "@aws-crypto/sha256-js";
-import { HttpRequest } from "@smithy/protocol-http";
+import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
-const API_URL = process.env.API_URL?.replace(/\/+$/, "");
-if (!API_URL) throw new Error("API_URL environment variable is required");
+const API_FUNCTION_NAME = process.env.API_FUNCTION_NAME;
+if (!API_FUNCTION_NAME) throw new Error("API_FUNCTION_NAME environment variable is required");
 
-const signer = new SignatureV4({
-  service: "lambda",
-  region: process.env.AWS_REGION ?? "us-east-1",
-  credentials: defaultProvider(),
-  sha256: Sha256,
-});
+const lambda = new LambdaClient({});
 
-async function signedGet<T>(url: string): Promise<T> {
-  const u = new URL(url);
-  const query: Record<string, string> = {};
-  u.searchParams.forEach((value, key) => {
-    query[key] = value;
-  });
+interface ApiResponse {
+  statusCode: number;
+  body: string;
+}
 
-  const signed = await signer.sign(
-    new HttpRequest({
-      method: "GET",
-      protocol: u.protocol,
-      hostname: u.hostname,
-      path: u.pathname,
-      query,
-      headers: { host: u.hostname },
+async function callApi<T>(
+  path: string,
+  queryStringParameters: Record<string, string> | null = null
+): Promise<T> {
+  const payload = JSON.stringify({ path, queryStringParameters });
+
+  const result = await lambda.send(
+    new InvokeCommand({
+      FunctionName: API_FUNCTION_NAME,
+      InvocationType: "RequestResponse",
+      Payload: payload,
     })
   );
 
-  console.error(
-    "[mcp] signing:",
-    JSON.stringify({
-      url,
-      region: process.env.AWS_REGION,
-      pathname: u.pathname,
-      query,
-      signedHeaders: Object.keys(signed.headers),
-      hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
-      hasSessionToken: !!process.env.AWS_SESSION_TOKEN,
-    })
-  );
+  const rawPayload = result.Payload ? Buffer.from(result.Payload).toString("utf-8") : "";
 
-  const response = await axios.get<T>(url, {
-    headers: signed.headers as Record<string, string>,
-    validateStatus: () => true,
-  });
-
-  console.error(
-    "[mcp] response:",
-    JSON.stringify({
-      url,
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-      data: response.data,
-    })
-  );
-
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(
-      `Inventory API ${response.status}: ${JSON.stringify(response.data)}`
-    );
+  if (result.FunctionError) {
+    throw new Error(`Inventory Lambda ${result.FunctionError}: ${rawPayload}`);
   }
-  return response.data;
+
+  const apiResp = JSON.parse(rawPayload) as ApiResponse;
+  if (apiResp.statusCode < 200 || apiResp.statusCode >= 300) {
+    throw new Error(`Inventory API ${apiResp.statusCode}: ${apiResp.body}`);
+  }
+  return JSON.parse(apiResp.body) as T;
 }
 
 interface StockItem {
@@ -86,7 +54,7 @@ server.tool(
   { productId: z.string().describe("The product SKU to query") },
   async ({ productId }) => {
     try {
-      const data = await signedGet<StockItem>(`${API_URL}/stock/${productId}`);
+      const data = await callApi<StockItem>(`/stock/${productId}`);
       const status = data.count < 10 ? "LOW STOCK — reorder needed" : "OK";
       return {
         content: [{ type: "text", text: `Product ${productId} | Count: ${data.count} | Status: ${status}` }],
@@ -104,7 +72,7 @@ server.tool(
   { threshold: z.number().int().min(0).default(10).describe("Max acceptable stock level") },
   async ({ threshold }) => {
     try {
-      const data = await signedGet<{ items: StockItem[] }>(`${API_URL}/stock?maxCount=${threshold}`);
+      const data = await callApi<{ items: StockItem[] }>("/stock", { maxCount: String(threshold) });
 
       if (data.items.length === 0) {
         return { content: [{ type: "text", text: "All products are adequately stocked." }] };

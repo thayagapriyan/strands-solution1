@@ -82,15 +82,10 @@ resource "aws_iam_role_policy" "agent_permissions" {
         Resource = local.bedrock_model_resources
       },
       {
-        # Call the private Data API Lambda URL (IAM-authenticated)
+        # Direct invoke of the inventory Lambda (same-account, in-process)
         Effect   = "Allow"
-        Action   = ["lambda:InvokeFunctionUrl"]
+        Action   = ["lambda:InvokeFunction"]
         Resource = aws_lambda_function.api.arn
-        Condition = {
-          StringEquals = {
-            "lambda:FunctionUrlAuthType" = "AWS_IAM"
-          }
-        }
       }
     ]
   })
