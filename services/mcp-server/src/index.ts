@@ -2,9 +2,44 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import axios from "axios";
+import { SignatureV4 } from "@aws-sdk/signature-v4";
+import { defaultProvider } from "@aws-sdk/credential-provider-node";
+import { Sha256 } from "@aws-crypto/sha256-js";
+import { HttpRequest } from "@smithy/protocol-http";
 
 const API_URL = process.env.API_URL;
 if (!API_URL) throw new Error("API_URL environment variable is required");
+
+const signer = new SignatureV4({
+  service: "lambda",
+  region: process.env.AWS_REGION ?? "us-east-1",
+  credentials: defaultProvider(),
+  sha256: Sha256,
+});
+
+async function signedGet<T>(url: string): Promise<T> {
+  const u = new URL(url);
+  const query: Record<string, string> = {};
+  u.searchParams.forEach((value, key) => {
+    query[key] = value;
+  });
+
+  const signed = await signer.sign(
+    new HttpRequest({
+      method: "GET",
+      protocol: u.protocol,
+      hostname: u.hostname,
+      path: u.pathname,
+      query,
+      headers: { host: u.hostname },
+    })
+  );
+
+  const { data } = await axios.get<T>(url, {
+    headers: signed.headers as Record<string, string>,
+  });
+  return data;
+}
 
 interface StockItem {
   id: string;
@@ -19,7 +54,7 @@ server.tool(
   "Check current stock level for a product by its SKU",
   { productId: z.string().describe("The product SKU to query") },
   async ({ productId }) => {
-    const { data } = await axios.get<StockItem>(`${API_URL}/stock/${productId}`);
+    const data = await signedGet<StockItem>(`${API_URL}/stock/${productId}`);
     const status = data.count < 10 ? "LOW STOCK — reorder needed" : "OK";
     return {
       content: [{ type: "text", text: `Product ${productId} | Count: ${data.count} | Status: ${status}` }],
@@ -32,7 +67,7 @@ server.tool(
   "List all products with stock below a threshold",
   { threshold: z.number().int().min(0).default(10).describe("Max acceptable stock level") },
   async ({ threshold }) => {
-    const { data } = await axios.get<{ items: StockItem[] }>(`${API_URL}/stock?maxCount=${threshold}`);
+    const data = await signedGet<{ items: StockItem[] }>(`${API_URL}/stock?maxCount=${threshold}`);
 
     if (data.items.length === 0) {
       return { content: [{ type: "text", text: "All products are adequately stocked." }] };
