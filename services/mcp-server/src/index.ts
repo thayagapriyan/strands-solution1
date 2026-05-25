@@ -35,10 +35,41 @@ async function signedGet<T>(url: string): Promise<T> {
     })
   );
 
-  const { data } = await axios.get<T>(url, {
+  console.error(
+    "[mcp] signing:",
+    JSON.stringify({
+      url,
+      region: process.env.AWS_REGION,
+      pathname: u.pathname,
+      query,
+      signedHeaders: Object.keys(signed.headers),
+      hasAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+      hasSessionToken: !!process.env.AWS_SESSION_TOKEN,
+    })
+  );
+
+  const response = await axios.get<T>(url, {
     headers: signed.headers as Record<string, string>,
+    validateStatus: () => true,
   });
-  return data;
+
+  console.error(
+    "[mcp] response:",
+    JSON.stringify({
+      url,
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+      data: response.data,
+    })
+  );
+
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(
+      `Inventory API ${response.status}: ${JSON.stringify(response.data)}`
+    );
+  }
+  return response.data;
 }
 
 interface StockItem {
