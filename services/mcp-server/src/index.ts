@@ -7,7 +7,7 @@ import { defaultProvider } from "@aws-sdk/credential-provider-node";
 import { Sha256 } from "@aws-crypto/sha256-js";
 import { HttpRequest } from "@smithy/protocol-http";
 
-const API_URL = process.env.API_URL;
+const API_URL = process.env.API_URL?.replace(/\/+$/, "");
 if (!API_URL) throw new Error("API_URL environment variable is required");
 
 const signer = new SignatureV4({
