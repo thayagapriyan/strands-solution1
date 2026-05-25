@@ -102,6 +102,14 @@ resource "aws_lambda_function_url" "api_url" {
   authorization_type = "AWS_IAM"
 }
 
+resource "aws_lambda_permission" "agent_invoke_api_url" {
+  statement_id           = "AllowAgentInvokeFunctionUrl"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.api.function_name
+  principal              = aws_iam_role.agent_lambda_role.arn
+  function_url_auth_type = "AWS_IAM"
+}
+
 resource "aws_cloudwatch_log_group" "api_logs" {
   name              = "/aws/lambda/${aws_lambda_function.api.function_name}"
   retention_in_days = 7
