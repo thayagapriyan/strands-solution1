@@ -49,7 +49,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: services/${{ matrix.service }}
-        run: npm ci --omit=dev
+        run: npm ci
 
       - name: Compile TypeScript
         working-directory: services/${{ matrix.service }}
