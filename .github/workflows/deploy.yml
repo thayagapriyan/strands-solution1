@@ -73,6 +73,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
@@ -80,23 +84,40 @@ jobs:
           merge-multiple: false
           path: builds/
 
-      # api.zip — standalone, no extra deps
+      # Build artifacts only contain dist/ — install prod deps fresh for services
+      # whose node_modules need to ship inside the Lambda ZIP.
+      - name: Install prod deps for agent
+        working-directory: services/agent
+        run: npm ci --omit=dev
+
+      - name: Install prod deps for mcp-server
+        working-directory: services/mcp-server
+        run: npm ci --omit=dev
+
+      # api.zip — inventory-api uses only @aws-sdk/* which is preinstalled in nodejs18.x
       - name: Package inventory-api
         run: |
-          mkdir -p dist
+          mkdir -p /tmp/api-pkg dist
           cp -r builds/build-inventory-api/* /tmp/api-pkg/
           cd /tmp/api-pkg && zip -r $GITHUB_WORKSPACE/dist/api.zip .
 
       # agent.zip — must embed the compiled MCP server so it can spawn it as a subprocess
       - name: Package strands-agent (with embedded MCP server)
         run: |
-          mkdir -p /tmp/agent-pkg
-          cp -r builds/build-agent/*     /tmp/agent-pkg/
+          mkdir -p /tmp/agent-pkg dist
+          cp -r builds/build-agent/* /tmp/agent-pkg/
           # MCP server is spawned as a child process by the agent at runtime
           mkdir -p /tmp/agent-pkg/mcp-server
           cp -r builds/build-mcp-server/* /tmp/agent-pkg/mcp-server/
+          # The agent's package.json declares "type": "module", which Node inherits for nested
+          # files unless overridden. The compiled mcp-server is CJS, so mark it explicitly.
+          echo '{"type":"commonjs"}' > /tmp/agent-pkg/mcp-server/package.json
+          # mcp-server has its own runtime deps (@modelcontextprotocol/sdk, axios, zod)
+          cp -r services/mcp-server/node_modules /tmp/agent-pkg/mcp-server/
           # Include prod node_modules from the agent service
           cp -r services/agent/node_modules /tmp/agent-pkg/
+          # package.json required so Lambda runtime treats the agent code as an ESM package
+          cp services/agent/package.json /tmp/agent-pkg/
           cd /tmp/agent-pkg && zip -r $GITHUB_WORKSPACE/dist/agent.zip .
 
       - name: Upload Lambda ZIPs
