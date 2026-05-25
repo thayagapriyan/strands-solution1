@@ -1,12 +1,22 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
-import type { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import type { APIGatewayProxyResult } from "aws-lambda";
 
 const docClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const TABLE_NAME = process.env.TABLE_NAME ?? "InventoryTable";
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
-  const path = event.path ?? "";
+// Handles three invocation shapes:
+//   - API Gateway v1 / direct invoke from the agent: { path, queryStringParameters }
+//   - Lambda Function URL: { rawPath, rawQueryString, queryStringParameters }
+interface InventoryEvent {
+  path?: string;
+  rawPath?: string;
+  rawQueryString?: string;
+  queryStringParameters?: Record<string, string> | null;
+}
+
+export const handler = async (event: InventoryEvent): Promise<APIGatewayProxyResult> => {
+  const path = event.path ?? event.rawPath ?? "";
   const stockById = path.match(/^\/stock\/([^/]+)$/);
 
   if (stockById) {
