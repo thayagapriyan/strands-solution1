@@ -84,7 +84,7 @@ resource "aws_lambda_function" "api" {
   function_name    = "${var.project_name}-inventory-api"
   role             = aws_iam_role.api_lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs20.x"
   filename         = "${local.dist_path}/api.zip"
   source_code_hash = fileexists("${local.dist_path}/api.zip") ? filebase64sha256("${local.dist_path}/api.zip") : ""
   timeout          = 10
@@ -113,7 +113,7 @@ resource "aws_lambda_function" "agent" {
   function_name    = "${var.project_name}-strands-agent"
   role             = aws_iam_role.agent_lambda_role.arn
   handler          = "index.handler"
-  runtime          = "nodejs18.x"
+  runtime          = "nodejs20.x"
   filename         = "${local.dist_path}/agent.zip"
   source_code_hash = fileexists("${local.dist_path}/agent.zip") ? filebase64sha256("${local.dist_path}/agent.zip") : ""
   timeout          = 60
