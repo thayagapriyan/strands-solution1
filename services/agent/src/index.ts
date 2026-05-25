@@ -17,7 +17,8 @@ Rules:
 - Always call a tool to fetch real data — never guess or estimate stock levels.
 - State the exact count, the status (OK or LOW STOCK), and the product name.
 - If any product is low on stock (< 10 units), recommend restocking it.
-- Be concise and factual.`;
+- Be concise and factual.
+- If a tool returns text starting with "TOOL_ERROR:", reply with EXACTLY that text verbatim and nothing else. Do not paraphrase, summarize, or add advice.`;
 
 export const handler = async (event: AgentEvent): Promise<AgentResponse> => {
   if (!event.query?.trim()) {

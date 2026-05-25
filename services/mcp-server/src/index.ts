@@ -85,11 +85,16 @@ server.tool(
   "Check current stock level for a product by its SKU",
   { productId: z.string().describe("The product SKU to query") },
   async ({ productId }) => {
-    const data = await signedGet<StockItem>(`${API_URL}/stock/${productId}`);
-    const status = data.count < 10 ? "LOW STOCK — reorder needed" : "OK";
-    return {
-      content: [{ type: "text", text: `Product ${productId} | Count: ${data.count} | Status: ${status}` }],
-    };
+    try {
+      const data = await signedGet<StockItem>(`${API_URL}/stock/${productId}`);
+      const status = data.count < 10 ? "LOW STOCK — reorder needed" : "OK";
+      return {
+        content: [{ type: "text", text: `Product ${productId} | Count: ${data.count} | Status: ${status}` }],
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: "text", text: `TOOL_ERROR: ${msg}` }] };
+    }
   }
 );
 
@@ -98,19 +103,24 @@ server.tool(
   "List all products with stock below a threshold",
   { threshold: z.number().int().min(0).default(10).describe("Max acceptable stock level") },
   async ({ threshold }) => {
-    const data = await signedGet<{ items: StockItem[] }>(`${API_URL}/stock?maxCount=${threshold}`);
+    try {
+      const data = await signedGet<{ items: StockItem[] }>(`${API_URL}/stock?maxCount=${threshold}`);
 
-    if (data.items.length === 0) {
-      return { content: [{ type: "text", text: "All products are adequately stocked." }] };
+      if (data.items.length === 0) {
+        return { content: [{ type: "text", text: "All products are adequately stocked." }] };
+      }
+
+      const rows = data.items
+        .map((i) => `• ${i.id} (${i.name ?? "unknown"}): ${i.count} units`)
+        .join("\n");
+
+      return {
+        content: [{ type: "text", text: `Low-stock products (< ${threshold} units):\n${rows}` }],
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { content: [{ type: "text", text: `TOOL_ERROR: ${msg}` }] };
     }
-
-    const rows = data.items
-      .map((i) => `• ${i.id} (${i.name ?? "unknown"}): ${i.count} units`)
-      .join("\n");
-
-    return {
-      content: [{ type: "text", text: `Low-stock products (< ${threshold} units):\n${rows}` }],
-    };
   }
 );
 
