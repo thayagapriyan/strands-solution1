@@ -34,7 +34,7 @@ export const handler = async (event: AgentEvent): Promise<AgentResponse> => {
   });
 
   const model = new AnthropicModel({
-    modelId: "claude-3-5-sonnet-20241022",
+    modelId: "claude-sonnet-4-6",
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
 
