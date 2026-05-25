@@ -1,0 +1,14 @@
+# One-time manual setup:
+#   1. Create an S3 bucket in your AWS account (enable versioning + encryption)
+#   2. Optionally create a DynamoDB table (hash key: LockID, type: S) for state locking
+#   3. Copy this file to infra/backend.hcl and fill in your values
+#   4. Run: cd infra && terraform init -backend-config=backend.hcl
+#
+# backend.hcl is gitignored — only backend.hcl.example is committed.
+# In CI, values are passed via GitHub Actions variables TF_STATE_BUCKET and TF_STATE_LOCK_TABLE.
+
+bucket         = "your-s3-bucket-name"
+key            = "warewise/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "your-lock-table-name"   # optional — remove this line if skipping locking
+encrypt        = true
